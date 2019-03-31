@@ -1,13 +1,14 @@
-import urllib2
+import urllib.request
 from bs4 import BeautifulSoup
 import collections
+import unidecode
 
 class Scraper():
     def __init__(self):
         self.infos = collections.defaultdict(list)
 
     def get_soup(self, url, header):
-        return BeautifulSoup(urllib2.urlopen(urllib2.Request(url, headers=header)), 'html.parser')
+        return BeautifulSoup(urllib.request.urlopen(url), 'html.parser')
 
     def clean(self,str):
         return str.replace("<strong>", '').replace("</strong>",'').replace("</li>","").replace("<li>","")
@@ -19,12 +20,12 @@ class Scraper():
         for a in soup.find_all("div", {"class": "directionAtStop"}):
             key = None
             for strong in a.find_all('strong'):
-                key = self.clean(strong.text)
+                key = unidecode.unidecode(self.clean(strong.text)).split(' ')[0]
                 break
             for li in a.find_all('li'):
-                value = self.clean(li.text)
+                value = unidecode.unidecode(self.clean(li.text))
                 self.infos[key].append(value)
-        print self.infos
+        return self.infos
 
 a = Scraper()
-print a.scraper("https://bustime.mta.info/m/index?q=501680")
+print (a.scraper("https://bustime.mta.info/m/index;jsessionid=3A3F4616CB3ABC38C9966CB25698DA09?q=501680"))
