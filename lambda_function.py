@@ -6,6 +6,7 @@ This is a Python template for Alexa to get you building skills (conversations) q
 
 from __future__ import print_function
 from scraper import Scraper
+import heapq
 
 # --------------- Helpers that build all of the responses ----------------------
 
@@ -39,97 +40,53 @@ def build_response(session_attributes, speechlet_response):
 
 # --------------- Functions that control the skill's behavior ------------------
 global nex
-nex = False
-def get_twoseven_response():
-    """ An example of a custom intent. Same structure as welcome message, just make sure to add this intent
-    in your alexa skill in order for it to work.
-    """
+nex = 0
+def get_busno_response(busno):
     global buses
     global index
     global num
     global nex
     nex = False
-    num = "Q27"
+    num = busno
     index = 0
-    buses = Scraper().scraper("https://bustime.mta.info/m/index?q=501369")
+    buses = Scraper().scraper(busno)
     if buses:
-        buses = buses["Q27"]
         speech_output = num + " is " + buses[index]
         index += 1
     else:
         speech_output = "no bus"
-        nex = False
+        nex = 0
     if index >= len(buses):
-        nex = False
+        nex = 0
     else:
-        nex = True
+        nex = 1
     session_attributes = {}
-    card_title = "Test"
-    reprompt_text = "You never responded to the first test message. Sending another one."
+    card_title = "busno"
+    reprompt_text = "Next bus?"
     should_end_session = False
     return build_response(session_attributes, build_speechlet_response(
         card_title, speech_output, reprompt_text, should_end_session))
 
-def get_sevensix_response():
-    """ An example of a custom intent. Same structure as welcome message, just make sure to add this intent
-    in your alexa skill in order for it to work.
-    """
-    global buses
-    global index
-    global num
+def get_dest_response(dest):
+    global heap
     global nex
-    nex = False
-    num = "Q76"
-    index = 0
-    buses = Scraper().scraper("https://bustime.mta.info/m/index?q=502760")
-    if buses:
-        buses = buses["Q76"]
-        speech_output = num + " is " + buses[index]
-        index += 1
+    nex = 2
+    heap = Scraper().destination(dest)
+    if heap:
+        cur = heapq.heappop(heap)
+        if cur[0] <= 1:leave = "now!"
+        else:leave = "in " + str(cur[0]) + " minutes."
+        speech_output = cur[1] + ' is ' + cur[2] + " away. You better leave " + leave
     else:
-        speech_output = "no bus"
-        nex = False
-    if index >= len(buses):
-        nex = False
-    else:
-        nex = True
+        speech_output = "no bus available at the moment"
+        nex = 0
     session_attributes = {}
-    card_title = "Test"
-    reprompt_text = "You never responded to the first test message. Sending another one."
+    card_title = "dest"
+    reprompt_text = "Next bus?"
     should_end_session = False
     return build_response(session_attributes, build_speechlet_response(
         card_title, speech_output, reprompt_text, should_end_session))
 
-
-def get_twosix_response():
-    """ An example of a custom intent. Same structure as welcome message, just make sure to add this intent
-    in your alexa skill in order for it to work.
-    """
-    global buses
-    global index
-    global num
-    global nex
-    nex = False
-    num = "Q26"
-    index = 0
-    buses = Scraper().scraper("https://bustime.mta.info/m/index?q=501555")
-    if buses:
-        buses = buses["Q26"]
-        speech_output = num + " is " + buses[index]
-        index += 1
-    else:
-        speech_output = "no bus"
-        nex = False
-    if index >= len(buses):
-        nex = False
-    else:
-        nex = True
-    session_attributes = {}
-    card_title = "Test"
-    reprompt_text = "You never responded to the first test message. Sending another one."
-    should_end_session = False
-    return build_response(session_attributes, build_speechlet_response(
-        card_title, speech_output, reprompt_text, should_end_session))
 
 def get_next_response():
     """ An example of a custom intent. Same structure as welcome message, just make sure to add this intent
@@ -138,19 +95,30 @@ def get_next_response():
     global buses
     global index
     global nex
-    if nex == False:
+    global heap
+    if nex == 0:
         speech_output = "no more buses"
-    else:
+    elif nex == 1:
         if index < len(buses):
             speech_output = "next " + num + " is " + buses[index]
             index += 1
         else:
             speech_output = "no bus"
-            nex = False
+            nex = 0
+    elif nex == 2:
+        if heap:
+            cur = heapq.heappop(heap)
+            if cur[0] <= 1:leave = "now!"
+            else:leave = "in " + str(cur[0]) + " minutes."
+            speech_output = cur[1] + ' is ' + cur[2] + " away. You better leave " + leave
+        else:
+            speech_output = "no more bus at the moment"
+            nex = 0
+
 
     session_attributes = {}
     card_title = "Test"
-    reprompt_text = "You never responded to the first test message. Sending another one."
+    reprompt_text = "Hello?"
     should_end_session = False
     return build_response(session_attributes, build_speechlet_response(
         card_title, speech_output, reprompt_text, should_end_session))
@@ -164,7 +132,7 @@ def get_welcome_response():
     speech_output = "What's up"
     # If the user either does not reply to the welcome message or says something
     # that is not understood, they will be prompted again with this text.
-    reprompt_text = "I don't know if you heard me, welcome to your custom alexa application!"
+    reprompt_text = "Hello?"
     should_end_session = False
     return build_response(session_attributes, build_speechlet_response(
         card_title, speech_output, reprompt_text, should_end_session))
@@ -206,11 +174,17 @@ def on_intent(intent_request, session):
 
     # Dispatch to your skill's intent handlers
     if intent_name == "twentysevenIntent":
-        return get_twoseven_response()
+        return get_busno_response("Q27")
     elif intent_name == "seventysixIntent":
-        return get_sevensix_response()
+        return get_busno_response("Q76")
     elif intent_name == "twentysixIntent":
-        return get_twosix_response()
+        return get_busno_response("Q26")
+    elif intent_name == "flushingIntent":
+        return get_dest_response("flushing")
+    elif intent_name == "cityIntent":
+        return get_dest_response("city")
+    elif intent_name == "cityIntent":
+        return get_dest_response("test")
     elif intent_name == "nextIntent":
         return get_next_response()
     elif intent_name == "AMAZON.HelpIntent":
@@ -257,5 +231,3 @@ def lambda_handler(event, context):
         return on_intent(event['request'], event['session'])
     elif event['request']['type'] == "SessionEndedRequest":
         return on_session_ended(event['request'], event['session'])
-
-print (get_twoseven_response())
